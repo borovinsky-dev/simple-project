@@ -1,12 +1,28 @@
 from fastapi import FastAPI
 from uvicorn import run
+from contextlib import asynccontextmanager
 
-from src.simple_project.items_view import router as items_router
-from src.simple_project.users.views import router as users_router
+from simple_project.api_v1.products import router as products_router_v1
+from simple_project.core.db_helper import db_helper
+from simple_project.items_view import router as items_router
+from simple_project.models import Base
+from simple_project.users.views import router as users_router
 
-app = FastAPI()
+from simple_project.core.config import settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with db_helper.engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+# подключение роутов
 app.include_router(items_router)
 app.include_router(users_router)
+app.include_router(products_router_v1, prefix=settings.api_v1_prefix)
 
 
 # view - функция
